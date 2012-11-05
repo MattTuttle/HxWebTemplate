@@ -7,6 +7,12 @@ class TemplateTest extends haxe.unit.TestCase
 		assertEquals('Hello Example!', t.render({ world : 'Example' }));
 	}
 
+	public function testDotNotation()
+	{
+		var t = new Template("{{foo.bar}}");
+		assertEquals('true', t.render({ foo : { bar : true } }));
+	}
+
 	public function testExtends()
 	{
 		var t = new Template("{% extends include/extends.html %}{% block main %}Hello{% end %}");
@@ -22,6 +28,14 @@ class TemplateTest extends haxe.unit.TestCase
 				{yep: 'yep'}
 			]
 		}));
+		assertEquals('', t.render({ items: [] }));
+	}
+
+	public function testForEmpty()
+	{
+		var t = new Template("{% for item in items %}{{ item }}{% empty %}There are no items{% end %}");
+		assertEquals('12', t.render({ items: [1,2] }));
+		assertEquals('There are no items', t.render({ items: [] }));
 	}
 
 	public function testNullVariable()
@@ -30,7 +44,7 @@ class TemplateTest extends haxe.unit.TestCase
 		assertEquals('null', t.render());
 	}
 
-	public function testBlock()
+	public function testBlockOverwrite()
 	{
 		var t = new Template("{% block foo %}This will be overridden{% end %} World!{% block foo %}Hi{% end %}");
 		assertEquals('Hi World!', t.render());

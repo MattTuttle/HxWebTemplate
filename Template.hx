@@ -8,7 +8,7 @@ private enum Expression
 	OpBlock(l:List<Expression>);
 	OpBlockRef(name:String);
 	OpFilter(name:String, block:Expression);
-	OpFor(v:String, expr:Void->Dynamic, loop:Expression);
+	OpFor(v:String, expr:Void->Dynamic, loop:Expression, empty:Expression);
 }
 
 private enum Filter
@@ -188,30 +188,37 @@ class Template
 				addFilter(name);
 				run(block);
 				filters.pop();
-			case OpFor(v, e, loop):
+			case OpFor(v, e, loop, empty):
 				var it:Dynamic = e();
-				try
+				if (empty != null && it.length == 0)
 				{
-					var x:Dynamic = it.iterator();
-					if (x.hasNext == null) throw null;
-					it = x;
+					run(empty);
 				}
-				catch(e:Dynamic)
+				else
 				{
 					try
 					{
-						if (it.hasNext == null) throw null;
+						var x:Dynamic = it.iterator();
+						if (x.hasNext == null) throw null;
+						it = x;
 					}
 					catch(e:Dynamic)
 					{
-						throw "Cannot iter on " + it;
+						try
+						{
+							if (it.hasNext == null) throw null;
+						}
+						catch(e:Dynamic)
+						{
+							throw "Cannot iter on " + it;
+						}
 					}
-				}
-				var it : Iterator<Dynamic> = it;
-				for (ctx in it)
-				{
-					Reflect.setField(context, v, ctx);
-					run(loop);
+					var it : Iterator<Dynamic> = it;
+					for (ctx in it)
+					{
+						Reflect.setField(context, v, ctx);
+						run(loop);
+					}
 				}
 		}
 	}
@@ -324,7 +331,7 @@ class Template
 				break;
 			}
 
-			if (t.p == "end" || t.p == "else" || t.p.substr(0,7) == "elseif ")
+			if (t.p == "end" || t.p == "else" || t.p == "empty" || t.p.substr(0,7) == "elseif ")
 				break;
 
 			l.add(parse(tokens));
@@ -393,12 +400,18 @@ class Template
 				var v = for_re.matched(1);
 				var e = parseExpr(for_re.matched(2));
 				var efor = parseBlock(tokens);
+				var empty = null;
 				var t = tokens.pop();
+				if (t.p == "empty")
+				{
+					empty = parseBlock(tokens);
+					t = tokens.pop();
+				}
 				if (t == null || t.p != "end")
 				{
 					throw "Unclosed 'for' statement";
 				}
-				return OpFor(v, e, efor);
+				return OpFor(v, e, efor, empty);
 			}
 			else
 			{
