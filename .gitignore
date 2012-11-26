@@ -1,3 +1,5 @@
 *.n
+*.swf
+
 .DS_Store
 Thumbs.db

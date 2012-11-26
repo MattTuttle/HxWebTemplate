@@ -1,2 +1,8 @@
 -x Runner
 -cp tests
+
+--next
+
+-swf Runner.swf
+-cp tests
+-main Runner
