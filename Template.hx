@@ -21,7 +21,9 @@ private enum Filter
 	FJoin(p:String);
 	FLast;
 	FLength;
+	FLower;
 	FStripTags;
+	FUpper;
 	FUrlEncode;
 }
 
@@ -39,7 +41,7 @@ private typedef Token = {
 
 class Template
 {
-	public static var globals : Dynamic = {};
+	public static var globals:Dynamic = {};
 
 	public function new(contents:String)
 	{
@@ -154,14 +156,20 @@ class Template
 			case OpNone:
 				// do nothing
 			case OpVar(v):
-				var_re.match(v);
-				v = var_re.matched(1);
-				var filter = var_re.matched(2);
-				if (filter != null) { addFilter(filter, var_re.matched(3)); }
-				buf.add(Std.string(applyFilters(resolve(v))));
-				if (filter != null) { filters.pop(); }
+				var vars = v.split('|');
+				v = vars.shift(); // grab the variable
+				for (filter in vars)
+				{
+					filter_re.match(filter);
+					addFilter(filter_re.matched(1), filter_re.matched(2));
+				}
+				addToBuffer(resolve(v));
+				for (i in 0...vars.length)
+				{
+					filters.pop();
+				}
 			case OpExpr(e):
-				buf.add(Std.string(e()));
+				addToBuffer(e());
 			case OpIf(e,eif,eelse):
 				var v : Dynamic = e();
 				if (v == null || v == false)
@@ -176,7 +184,7 @@ class Template
 					run(eif);
 				}
 			case OpStr(str):
-				buf.add(str);
+				addToBuffer(str);
 			case OpBlock(l):
 				for (e in l)
 				{
@@ -223,22 +231,32 @@ class Template
 		}
 	}
 
-	private function addFilter(name:String, ?param:String)
+	private inline function addFilter(name:String, ?param:String)
 	{
 		switch (name)
 		{
-			case "add":        filters.push(FAdd(param));
-			case "addslashes": filters.push(FAddSlashes);
-			case "capfirst":   filters.push(FCapFirst);
-			case "cut":        filters.push(FCut(param));
-			case "first":      filters.push(FFirst);
-			case "join":       filters.push(FJoin(param));
-			case "last":       filters.push(FLast);
-			case "length":     filters.push(FLength);
-			case "striptags":  filters.push(FStripTags);
-			case "urlencode":  filters.push(FUrlEncode);
+			case "add":        filters.add(FAdd(param));
+			case "addslashes": filters.add(FAddSlashes);
+			case "capfirst":   filters.add(FCapFirst);
+			case "cut":        filters.add(FCut(param));
+			case "first":      filters.add(FFirst);
+			case "join":       filters.add(FJoin(param));
+			case "last":       filters.add(FLast);
+			case "length":     filters.add(FLength);
+			case "lower":      filters.add(FLower);
+			case "striptags":  filters.add(FStripTags);
+			case "upper":      filters.add(FUpper);
+			case "urlencode":  filters.add(FUrlEncode);
 			default: throw "Filter '" + name + "' does not exist";
 		}
+	}
+
+	/**
+	 * Adds value to the output buffer (runs through filters)
+	 */
+	private inline function addToBuffer(value:Dynamic)
+	{
+		buf.add(Std.string(applyFilters(value)));
 	}
 
 	private inline function applyFilters(val:Dynamic):Dynamic
@@ -275,16 +293,10 @@ class Template
 							}
 						}
 					case FCapFirst:
-						if (Std.is(val, String))
-						{
-							var str = cast(val, String);
-							val = str.substr(0, 1).toUpperCase() + str.substr(1);
-						}
+						var str = cast(val, String);
+						val = str.substr(0, 1).toUpperCase() + str.substr(1);
 					case FCut(p):
-						if (Std.is(val, String))
-						{
-							val = val.split(p).join('');
-						}
+						val = val.split(p).join('');
 					case FFirst:
 						if (Std.is(val, Array))
 						{
@@ -295,10 +307,7 @@ class Template
 							val = val.first();
 						}
 					case FJoin(p):
-						if (Std.is(val, Array))
-						{
-							val = val.join(p);
-						}
+						val = val.join(p);
 					case FLast:
 						if (Std.is(val, Array))
 						{
@@ -310,10 +319,14 @@ class Template
 						}
 					case FLength:
 						val = val.length;
+					case FLower:
+						val = val.toLowerCase();
 					case FStripTags:
 						val = html_tag_re.customReplace(val, function(e:EReg) { return ""; });
 					case FUrlEncode:
 						val = StringTools.urlEncode(val);
+					case FUpper:
+						val = val.toUpperCase();
 				}
 			}
 		}
@@ -343,6 +356,18 @@ class Template
 		}
 
 		return OpBlock(l);
+	}
+
+	function getFileContents(path:String):String
+	{
+		if (sys.FileSystem.exists(path))
+		{
+			return sys.io.File.getContent(path);
+		}
+		else
+		{
+			throw "Include '" + path + "' does not exist";
+		}
 	}
 
 	function parse(tokens:List<Token>)
@@ -433,18 +458,15 @@ class Template
 			return exists ? OpNone : OpBlockRef(name);
 		}
 
+		if (StringTools.startsWith(p, "include "))
+		{
+			return OpStr(getFileContents(p.substr(8)));
+		}
+
 		if (StringTools.startsWith(p, "extends "))
 		{
-			var filename = p.substr(8);
-			if (sys.FileSystem.exists(filename))
-			{
-				var tokens = tokenize(sys.io.File.getContent(filename));
-				return parseBlock(tokens);
-			}
-			else
-			{
-				throw "Extended template '" + filename + "' does not exist";
-			}
+			var tokens = tokenize(getFileContents(p.substr(8)));
+			return parseBlock(tokens);
 		}
 
 		if (StringTools.startsWith(p, "filter "))
@@ -618,7 +640,7 @@ class Template
 	private static inline var COMMENT_TAG_END = '#}';
 
 	private static var tag_re = null;
-	private static var var_re = ~/([A-Za-z][A-Za-z0-9_\.]*)(?:\|([a-z]+)(?::"(.*)")?)?/;
+	private static var filter_re = ~/([a-z]+)(?::"(.*?)")?/;
 	private static var for_re = ~/for ([A-Za-z][A-Za-z0-9_]*) in (.*)/;
 	private static var expr_re = ~/([ \r\n\t]*\([ \r\n\t]*|[ \r\n\t]*\)[ \r\n\t]*|[ \r\n\t]*"[^"]*"[ \r\n\t]*|[!+=\/><*.&|-]+)/;
 	private static var expr_int_re = ~/^[0-9]+$/;

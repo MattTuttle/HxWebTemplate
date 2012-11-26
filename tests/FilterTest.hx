@@ -1,9 +1,22 @@
 class FilterTest extends haxe.unit.TestCase
 {
+
 	public function testFilterBlock()
 	{
 		var t = new Template('{% filter addslashes %}{{ foo|cut:" " }}{% end %}');
 		assertEquals('\\"foobar\\"', t.render({ foo: '"foo bar"' }));
+	}
+
+	public function testPlainTextFilter()
+	{
+		var t = new Template('{% filter capfirst %}hi there{% end %}');
+		assertEquals('Hi there', t.render());
+	}
+
+	public function testMultipleFilters()
+	{
+		var t = new Template('{{ foo|add:"world!"|capfirst }}');
+		assertEquals('Hello world!', t.render({ foo: 'hello ' }));
 	}
 
 	public function testAdd()
@@ -57,6 +70,12 @@ class FilterTest extends haxe.unit.TestCase
 		assertEquals('5', t.render({ foo:'hello' }));
 	}
 
+	public function testUpper()
+	{
+		var t = new Template('{{ foo|upper }}');
+		assertEquals('HELLO', t.render({ foo:'HeLlO' }));
+	}
+
 	public function testStripTags()
 	{
 		var t = new Template('{{ foo|striptags }}');
@@ -67,6 +86,12 @@ class FilterTest extends haxe.unit.TestCase
 	{
 		var t = new Template('{{ foo|urlencode }}');
 		assertEquals("http%3A%2F%2Fwww.example.org%2F", t.render({ foo:"http://www.example.org/" }));
+	}
+
+	public function testLower()
+	{
+		var t = new Template('{{ foo|lower }}');
+		assertEquals('hello', t.render({ foo:'HeLlO' }));
 	}
 
 }
