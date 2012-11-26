@@ -6,16 +6,21 @@ This is a template parsing class written in haxe. The intent is to use this in a
 The parser is very simple to use and could be plugged into any framework. Here is a quick example.
 
 ```haxe
-public static function runTemplate(path:String, ?context:Dynamic):String
+class Main
 {
-	var html = sys.io.File.getContent(path); // get template from a file
-	var tpl = new Template(html); // parses the template
-	return tpl.render(context); // renders the output with any data passed
+	public static function runTemplate(path:String, ?context:Dynamic):String
+	{
+		var html = sys.io.File.getContent(path); // get template from a file
+		var tpl = new Template(html); // parses the template
+		return tpl.render(context); // renders the output with any data passed
+	}
+
+	public static function main()
+	{
+		runTemplate('index.html', {title: 'Home Page'});
+	}
+
 }
-
-...
-
-runTemplate('index.html', {title: 'Home Page'});
 ```
 
 ```html
