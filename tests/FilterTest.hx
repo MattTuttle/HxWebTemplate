@@ -15,13 +15,13 @@ class FilterTest extends haxe.unit.TestCase
 
 	public function testMultipleFilters()
 	{
-		var t = new Template('{{ foo|add:"world!"|capfirst }}');
+		var t = new Template('{{ foo | add:"world!" | capfirst }}');
 		assertEquals('Hello world!', t.render({ foo: 'hello ' }));
 	}
 
 	public function testAdd()
 	{
-		var t = new Template('{{ foo|add:"2" }}');
+		var t = new Template('{{ foo|add:2 }}');
 		assertEquals('[1,2]', t.render({ foo: [1] }));
 		assertEquals('12', t.render({ foo: '1' }));
 		assertEquals('3.5', t.render({ foo: 1.5 }));
@@ -29,7 +29,7 @@ class FilterTest extends haxe.unit.TestCase
 
 	public function testAddSlashes()
 	{
-		var t = new Template("{{ foo|addslashes }}");
+		var t = new Template("{{ foo | addslashes }}");
 		assertEquals('\\"bar\\"', t.render({ foo: '"bar"' }));
 	}
 
