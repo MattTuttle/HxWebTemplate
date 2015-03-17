@@ -1,3 +1,7 @@
+package com.matttuttle;
+
+import haxe.ds.StringMap;
+
 private enum Expression
 {
 	OpNone;
@@ -45,7 +49,7 @@ class Template
 
 	public function new(contents:String)
 	{
-		blocks = new Hash<Expression>();
+		blocks = new StringMap<Expression>();
 		filters = new List<Filter>();
 
 		var tokens = tokenize(contents);
@@ -254,12 +258,12 @@ class Template
 	/**
 	 * Adds value to the output buffer (runs through filters)
 	 */
-	private inline function addToBuffer(value:Dynamic)
+	private inline function addToBuffer(value:Dynamic):Void
 	{
 		buf.add(Std.string(applyFilters(value)));
 	}
 
-	private inline function applyFilters(val:Dynamic):Dynamic
+	private function applyFilters(val:Dynamic):Dynamic
 	{
 		if (val != null)
 		{
@@ -322,7 +326,7 @@ class Template
 					case FLower:
 						val = val.toLowerCase();
 					case FStripTags:
-						val = html_tag_re.customReplace(val, function(e:EReg) { return ""; });
+						val = html_tag_re.map(val, function(e:EReg) { return ""; });
 					case FUrlEncode:
 						val = StringTools.urlEncode(val);
 					case FUpper:
@@ -648,12 +652,12 @@ class Template
 	private static var expr_re = ~/([ \r\n\t]*\([ \r\n\t]*|[ \r\n\t]*\)[ \r\n\t]*|[ \r\n\t]*"[^"]*"[ \r\n\t]*|[!+=\/><*.&|-]+)/;
 	private static var expr_int_re = ~/^[0-9]+$/;
 	private static var expr_float_re = ~/^([+-]?)(?=\d|,\d)\d*(,\d*)?([Ee]([+-]?\d+))?$/;
-	private static var html_tag_re = ~/(<[\/A-Za-z0-9='" ]+>)/;
+	private static var html_tag_re = ~/(<[\/A-Za-z0-9='" ]+>)/g;
 
 	private var filters:List<Filter>;
 	private var context:Dynamic;
 	private var buf:StringBuf;
 	private var expr:Expression;
-	private var blocks:Hash<Expression>;
+	private var blocks:StringMap<Expression>;
 
 }

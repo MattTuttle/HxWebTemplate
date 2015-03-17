@@ -1,3 +1,5 @@
+import com.matttuttle.Template;
+
 class FilterTest extends haxe.unit.TestCase
 {
 

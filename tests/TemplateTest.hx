@@ -1,3 +1,5 @@
+import com.matttuttle.Template;
+
 class TemplateTest extends haxe.unit.TestCase
 {
 
@@ -22,11 +24,11 @@ class TemplateTest extends haxe.unit.TestCase
 	public function testForLoop()
 	{
 		var t = new Template("{% for item in items %}{{ item.yep }}{% end %}");
+		var items = new Array<Dynamic>();
+		items.push({nope: 'hello'});
+		items.push({yep: 'yep'});
 		assertEquals('nullyep', t.render({
-			items: [
-				{nope: 'hello'},
-				{yep: 'yep'}
-			]
+			items: items
 		}));
 		assertEquals('', t.render({ items: [] }));
 	}
