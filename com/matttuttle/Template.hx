@@ -21,6 +21,7 @@ private enum Filter
 	FAddSlashes;
 	FCapFirst;
 	FCut(p:String);
+	FDate(p:String);
 	FFirst;
 	FJoin(p:String);
 	FLast;
@@ -54,6 +55,13 @@ class Template
 
 		var tokens = tokenize(contents);
 		expr = parseBlock(tokens);
+	}
+
+	static function __init__()
+	{
+		// TODO: non-english date formatting?
+		monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+		dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 	}
 
 	public function render(?context:Dynamic):String
@@ -243,6 +251,7 @@ class Template
 			case "addslashes": filters.add(FAddSlashes);
 			case "capfirst":   filters.add(FCapFirst);
 			case "cut":        filters.add(FCut(param));
+			case "date":       filters.add(FDate(param));
 			case "first":      filters.add(FFirst);
 			case "join":       filters.add(FJoin(param));
 			case "last":       filters.add(FLast);
@@ -301,6 +310,17 @@ class Template
 						val = str.substr(0, 1).toUpperCase() + str.substr(1);
 					case FCut(p):
 						val = val.split(p).join('');
+					case FDate(p):
+						var date:Date;
+						if (Std.is(val, Date))
+						{
+							date = val;
+						}
+						else
+						{
+							date = Date.fromString(val);
+						}
+						val = formatDate(date, p);
 					case FFirst:
 						if (Std.is(val, Array))
 						{
@@ -335,6 +355,61 @@ class Template
 			}
 		}
 		return val;
+	}
+
+	private static function formatDate(d:Date, f:String):String
+	{
+		var get = function(d:Date, e:String):String {
+			return switch( e ){
+				case "%": "%";
+				case "a": dayNames[d.getDay()].substr(0, 3);
+				case "A": dayNames[d.getDay()];
+				case "b", "h": monthNames[d.getMonth()].substr(0, 3);
+				case "B": monthNames[d.getMonth()];
+				case "C": StringTools.lpad(Std.string(Std.int(d.getFullYear()/100)),"0",2);
+				case "d": StringTools.lpad(Std.string(d.getDate()),"0",2);
+				case "D": formatDate(d,"%m/%d/%y");
+				case "e": Std.string(d.getDate());
+				case "F": formatDate(d,"%Y-%m-%d");
+				case "H", "k": StringTools.lpad(Std.string(d.getHours()),if( e == "H" ) "0" else " ",2);
+				case "I", "l":
+					var hour = d.getHours() % 12;
+					StringTools.lpad(Std.string(hour == 0 ? 12 : hour),if( e == "I" ) "0" else " ",2);
+				case "m": StringTools.lpad(Std.string(d.getMonth()+1),"0",2);
+				case "M": StringTools.lpad(Std.string(d.getMinutes()),"0",2);
+				case "n": "\n";
+				case "p": if( d.getHours() > 11 ) "PM"; else "AM";
+				case "r": formatDate(d,"%I:%M:%S %p");
+				case "R": formatDate(d,"%H:%M");
+				case "s": Std.string(Std.int(d.getTime()/1000));
+				case "S": StringTools.lpad(Std.string(d.getSeconds()),"0",2);
+				case "t": "\t";
+				case "T": formatDate(d,"%H:%M:%S");
+				case "u":
+					var t = d.getDay();
+					if (t == 0) "7"; else Std.string(t);
+				case "w": Std.string(d.getDay());
+				case "y": StringTools.lpad(Std.string(d.getFullYear()%100),"0",2);
+				case "Y": Std.string(d.getFullYear());
+				default:
+					throw "Date.format %" + e + "- not implemented yet.";
+			}
+		};
+		var r = new StringBuf();
+		var p = 0;
+		while (true)
+		{
+			var np = f.indexOf("%", p);
+			if (np < 0)
+				break;
+
+			r.addSub(f, p, np - p);
+			r.add(get(d, f.substr(np + 1, 1)));
+
+			p = np+2;
+		}
+		r.addSub(f, p, f.length - p);
+		return r.toString();
 	}
 
 	private function parseBlock(tokens:List<Token>):Expression
@@ -638,7 +713,10 @@ class Template
 		}
 	}
 
-	private static inline var TAG_CHARS = '[A-Za-z0-9_ ()&|!+=/><*.:"-]+';
+	private static var monthNames:Array<String>;
+	private static var dayNames:Array<String>;
+
+	private static inline var TAG_CHARS = '[A-Za-z0-9_ ()&|!+=/><*%.:,"-]+';
 	private static inline var BLOCK_TAG_START = '{%';
 	private static inline var BLOCK_TAG_END = '%}';
 	private static inline var VARIABLE_TAG_START = '{{';
