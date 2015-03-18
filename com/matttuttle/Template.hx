@@ -66,7 +66,7 @@ class Template
 
 	public function render(?context:Dynamic):String
 	{
-		this.context = context;
+		this.context = (context == null ? {} : context);
 		this.buf = new StringBuf();
 		run(expr);
 		return buf.toString();
