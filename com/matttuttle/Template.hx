@@ -12,7 +12,7 @@ private enum Expression
 	OpBlock(l:List<Expression>);
 	OpBlockRef(name:String);
 	OpFilter(name:String, block:Expression);
-	OpFor(v:String, expr:Void->Dynamic, loop:Expression, empty:Expression);
+	OpFor(value:String, expr:Void->Dynamic, loop:Expression, empty:Expression, key:String);
 }
 
 private enum Filter
@@ -208,36 +208,52 @@ class Template
 				addFilter(name);
 				run(block);
 				filters.pop();
-			case OpFor(v, e, loop, empty):
-				var it:Dynamic = e();
+			case OpFor(value, block, loop, empty, key):
+				var it:Dynamic = block();
 				if (empty != null && it.length == 0)
 				{
 					run(empty);
 				}
 				else
 				{
-					try
+					var i = 0;
+					if (Std.is(it, StringMap))
 					{
-						var x:Dynamic = it.iterator();
-						if (x.hasNext == null) throw null;
-						it = x;
+						var map = cast(it, StringMap<Dynamic>);
+						for (k in map.keys())
+						{
+							Reflect.setField(context, "__index", i++);
+							Reflect.setField(context, key, k);
+							Reflect.setField(context, value, map.get(k));
+							run(loop);
+						}
 					}
-					catch(e:Dynamic)
+					else
 					{
 						try
 						{
-							if (it.hasNext == null) throw null;
+							var x:Dynamic = it.iterator();
+							if (x.hasNext == null) throw null;
+							it = x;
 						}
 						catch(e:Dynamic)
 						{
-							throw "Cannot iter on " + it;
+							try
+							{
+								if (it.hasNext == null) throw null;
+							}
+							catch(e:Dynamic)
+							{
+								throw "Cannot iter on " + it;
+							}
 						}
-					}
-					var it : Iterator<Dynamic> = it;
-					for (ctx in it)
-					{
-						Reflect.setField(context, v, ctx);
-						run(loop);
+						var it:Iterator<Dynamic> = it;
+						for (ctx in it)
+						{
+							Reflect.setField(context, "__index", i++);
+							Reflect.setField(context, value, ctx);
+							run(loop);
+						}
 					}
 				}
 		}
@@ -504,10 +520,17 @@ class Template
 		{
 			if (for_re.match(p))
 			{
-				var v = for_re.matched(1);
-				var e = parseExpr(for_re.matched(2));
-				var efor = parseBlock(tokens);
 				var empty = null;
+				var key = for_re.matched(1);
+				var value = for_re.matched(2);
+				if (value == null)
+				{
+					value = for_re.matched(1);
+					key = null;
+				}
+
+				var e = parseExpr(for_re.matched(3));
+				var efor = parseBlock(tokens);
 				var t = tokens.pop();
 				if (t.p == "empty")
 				{
@@ -518,7 +541,7 @@ class Template
 				{
 					throw "Unclosed 'for' statement";
 				}
-				return OpFor(v, e, efor, empty);
+				return OpFor(value, e, efor, empty, key);
 			}
 			else
 			{
@@ -726,7 +749,7 @@ class Template
 
 	private static var tag_re = null;
 	private static var filter_re = ~/([a-z]+)(?::"?([^"]*)"?)?/;
-	private static var for_re = ~/for ([A-Za-z][A-Za-z0-9_]*) in (.*)/;
+	private static var for_re = ~/for\s*([A-Za-z][A-Za-z0-9_]*)(?:,\s*([A-Za-z][A-Za-z0-9_]*))?\s*in\s*(.*)/;
 	private static var expr_re = ~/([ \r\n\t]*\([ \r\n\t]*|[ \r\n\t]*\)[ \r\n\t]*|[ \r\n\t]*"[^"]*"[ \r\n\t]*|[!+=\/><*.&|-]+)/;
 	private static var expr_int_re = ~/^[0-9]+$/;
 	private static var expr_float_re = ~/^([+-]?)(?=\d|,\d)\d*(,\d*)?([Ee]([+-]?\d+))?$/;
