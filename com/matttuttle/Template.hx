@@ -209,17 +209,17 @@ class Template
 				run(block);
 				filters.pop();
 			case OpFor(value, block, loop, empty, key):
-				var it:Dynamic = block();
-				if (empty != null && it.length == 0)
+				var obj:Dynamic = block();
+				if (empty != null && obj.length == 0)
 				{
 					run(empty);
 				}
 				else
 				{
 					var i = 0;
-					if (Std.is(it, StringMap))
+					if (Std.is(obj, StringMap))
 					{
-						var map = cast(it, StringMap<Dynamic>);
+						var map = cast(obj, StringMap<Dynamic>);
 						for (k in map.keys())
 						{
 							Reflect.setField(context, "__index", i++);
@@ -232,22 +232,22 @@ class Template
 					{
 						try
 						{
-							var x:Dynamic = it.iterator();
+							var x:Dynamic = obj.iterator();
 							if (x.hasNext == null) throw null;
-							it = x;
+							obj = x;
 						}
 						catch(e:Dynamic)
 						{
 							try
 							{
-								if (it.hasNext == null) throw null;
+								if (obj.hasNext == null) throw null;
 							}
 							catch(e:Dynamic)
 							{
-								throw "Cannot iter on " + it;
+								throw "Cannot iter on " + obj;
 							}
 						}
-						var it:Iterator<Dynamic> = it;
+						var it:Iterator<Dynamic> = obj;
 						for (ctx in it)
 						{
 							Reflect.setField(context, "__index", i++);
@@ -525,11 +525,11 @@ class Template
 				var value = for_re.matched(2);
 				if (value == null)
 				{
-					value = for_re.matched(1);
+					value = key;
 					key = null;
 				}
 
-				var e = parseExpr(for_re.matched(3));
+				var expr = parseExpr(for_re.matched(3));
 				var efor = parseBlock(tokens);
 				var t = tokens.pop();
 				if (t.p == "empty")
@@ -541,7 +541,7 @@ class Template
 				{
 					throw "Unclosed 'for' statement";
 				}
-				return OpFor(value, e, efor, empty, key);
+				return OpFor(value, expr, efor, empty, key);
 			}
 			else
 			{
