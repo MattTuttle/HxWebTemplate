@@ -7,8 +7,6 @@ import haxe.ds.StringMap;
 class TemplateLoader
 {
 
-	public static var templateDir:String = "templates";
-
 	public static function __add(name:String, contents:String):Void
 	{
 		var template:Template;
@@ -34,8 +32,13 @@ class TemplateLoader
 	{
 		try
 		{
-			var p = Context.resolvePath(templateDir + "/" + name);
-			if (!sys.FileSystem.exists(p)) throw "does not exist";
+			var found = false;
+			for (dir in getTemplateDirs())
+			{
+				var p = Context.resolvePath(dir + "/" + name);
+				if (sys.FileSystem.exists(p)) found = true;
+			}
+			if (!found) throw "does not exist";
 
 			return macro TemplateLoader.__render($v{name}, ${v});
 		}
@@ -47,12 +50,15 @@ class TemplateLoader
 
 	macro public static function load():Expr
 	{
+		var a = new Array<Expr>();
 		try
 		{
-			var p = Context.resolvePath(templateDir);
-			Context.registerModuleDependency(Context.getLocalModule(), p);
-			var a = new Array<Expr>();
-			readTemplateDir(p, a);
+			for (dir in getTemplateDirs())
+			{
+				var p = Context.resolvePath(dir);
+				Context.registerModuleDependency(Context.getLocalModule(), p);
+				readTemplateDir(p, a);
+			}
 
 			return { expr: EBlock(a), pos: Context.currentPos() };
 		}
@@ -63,6 +69,36 @@ class TemplateLoader
 	}
 
 	#if macro
+	private static function getTemplateDirs():Array<String>
+	{
+		var meta = Context.getLocalClass().get().meta;
+		if (meta.has("template"))
+		{
+			var dirs = [];
+			for (m in meta.get())
+			{
+				if (m.name == "template")
+				{
+					for (p in m.params)
+					{
+						switch (p.expr)
+						{
+							case EConst(CString(v)):
+								dirs.push(v);
+							default:
+						}
+					}
+					break;
+				}
+			}
+			return dirs;
+		}
+		else
+		{
+			return [];
+		}
+	}
+
 	private static function readTemplateDir(p, a, name="")
 	{
 		for (file in sys.FileSystem.readDirectory(p))
